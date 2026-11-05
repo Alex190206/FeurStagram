@@ -124,6 +124,11 @@ public final class Config {
         return getBlocked("limit_following_feed", false);
     }
 
+    /** Keep ranked Home, ending at its caught-up card. Independent of Following and Suggested. */
+    public static boolean isStopHomeAtCaughtUp() {
+        return getBlocked("stop_home_at_caught_up", true);
+    }
+
     public static boolean isFeedBlocked()      { return getBlocked("block_feed", true); }
     public static boolean isExploreBlocked()   { return getBlocked("block_explore", true); }
     public static boolean isReelsBlocked()     { return getBlocked("block_reels", true); }

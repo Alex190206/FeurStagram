@@ -732,6 +732,7 @@ public final class Settings {
     private static void buildFeed(Context context, LinearLayout column) {
         LinearLayout feed = addGroup(context, column);
         addRow(context, feed, "Following feed only", "limit_following_feed", Config.isFollowingFeedOnly());
+        addRow(context, feed, "Stop Home after you're all caught up", "stop_home_at_caught_up", Config.isStopHomeAtCaughtUp());
         sealGroup(context, feed);
     }
 
@@ -1270,6 +1271,7 @@ public final class Settings {
         if (key.equals("auto_update")) return "Check GitHub for a new version on launch.";
         if (key.equals("block_ads")) return "Block sponsored ads across Instagram.";
         if (key.equals("limit_following_feed")) return "Show only accounts you follow (needs the feed unblocked).";
+        if (key.equals("stop_home_at_caught_up")) return "Keep the ranked Home feed and caught-up message; hide everything below it (needs the feed unblocked).";
         if (key.equals("hide_toasts")) return "Hide every Instagram popup, including “couldn’t refresh feed”.";
         if (key.equals("force_sdr")) return "Keep blacks deep by stopping Instagram forcing HDR on the UI.";
         if (key.equals("block_friends_lane")) return "Hide the Friends tab and its avatars in the Reels header.";
