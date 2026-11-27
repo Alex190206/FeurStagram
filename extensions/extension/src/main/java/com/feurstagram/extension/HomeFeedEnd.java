@@ -79,7 +79,7 @@ public final class HomeFeedEnd {
     }
 
     /**
-     * The end-card binder calls this after rendering. Long-pressing the visible
+     * The end-card binder calls this while rendering. Long-pressing the visible
      * caught-up card opens the password dialog. It doesn't replace the card's
      * normal click handlers or its Older posts link.
      */
