@@ -48,7 +48,7 @@ public final class FeedUnlock {
                             return;
                         }
                         entry.setText("");
-                        Config.setBlocked("stop_home_at_caught_up", false);
+                        Config.unlockCaughtUpForNextLaunch();
                         Config.setNeedsRestart();
                         dialog.dismiss();
                         if (afterUnlock != null) afterUnlock.run();
