@@ -2,20 +2,25 @@ package com.feurstagram.extension;
 
 import org.junit.Test;
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 public class FeedUnlockCodeTest {
-    @Test public void correctCodeUnlocks() {
-        assertTrue(FeedUnlockCode.matches("12345678987654321"));
+    /**
+     * Supply -Dfeurstagram.unlock.code=... to verify the configured owner code.
+     * Keep the plaintext out of this public repository and CI logs.
+     */
+    @Test public void ownerCodeUnlocksWhenSuppliedLocally() {
+        String code = System.getProperty("feurstagram.unlock.code");
+        assumeTrue(code != null && !code.isEmpty());
+        assertTrue(FeedUnlockCode.matches(code));
     }
 
-    @Test public void wrongOrIncompleteCodesStayLocked() {
+    @Test public void wrongOrEmptyCodesStayLocked() {
         assertFalse(FeedUnlockCode.matches(null));
         assertFalse(FeedUnlockCode.matches(""));
-        assertFalse(FeedUnlockCode.matches("1234567898765432"));
-        assertFalse(FeedUnlockCode.matches("123456789876543210"));
-        assertFalse(FeedUnlockCode.matches("12345678987654322"));
-        assertFalse(FeedUnlockCode.matches(" 12345678987654321"));
-        assertFalse(FeedUnlockCode.matches("12345678987654321 "));
-        assertFalse(FeedUnlockCode.matches("012345678987654321"));
+        assertFalse(FeedUnlockCode.matches("0"));
+        assertFalse(FeedUnlockCode.matches("1234"));
+        assertFalse(FeedUnlockCode.matches("not the password"));
+        assertFalse(FeedUnlockCode.matches("00000000000000000"));
     }
 }
