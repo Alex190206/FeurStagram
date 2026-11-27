@@ -1,8 +1,10 @@
 package com.feurstagram.patches.network
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.instructions
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
+import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
 import com.feurstagram.patches.shared.Constants.COMPATIBILITY_INSTAGRAM
@@ -55,6 +57,19 @@ val stopHomeAtCaughtUpPatch = bytecodePatch(
         // visibly during patching instead of shipping a toggle that does nothing.
         bodies.keys.forEach { if (bridges[it] == null) throw PatchException("Missing Home boundary bridge: $it") }
         bodies.forEach { (name, body) -> bridges.getValue(name).addInstructions(0, body) }
+
+        // The binder receives (view, card) as p2/p3. Install a long-press
+        // password entry point after it finishes rendering the caught-up card.
+        // Insert backwards so earlier return offsets remain stable.
+        val cardBinder = mutable(target.bind)
+        cardBinder.instructions.filter { it.opcode == Opcode.RETURN_VOID }
+            .map { it.location.index }.sortedDescending().forEach { index ->
+                cardBinder.addInstructions(
+                    index,
+                    "invoke-static/range { p2 .. p3 }, " +
+                        "$BRIDGE->bindUnlockGesture(Landroid/view/View;Ljava/lang/Object;)V",
+                )
+            }
 
         mutable(target.publish).addInstructions(
             0, "invoke-static/range { p0 .. p0 }, $BLOCK->limitHomeRows(Ljava/lang/Object;)V",
