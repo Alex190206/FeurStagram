@@ -3,6 +3,7 @@ package com.feurstagram.extension;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.view.ViewGroup;
@@ -39,7 +40,7 @@ public final class FeedUnlock {
                     .setNegativeButton("Cancel", (d, which) -> {})
                     .setPositiveButton("Unlock", null)
                     .create();
-            dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            dialog.setOnShowListener(ignored -> dialog.getButton(DialogInterface.BUTTON_POSITIVE)
                     .setOnClickListener(button -> {
                         String code = entry.getText().toString();
                         if (!FeedUnlockCode.matches(code)) {
