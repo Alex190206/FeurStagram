@@ -58,7 +58,7 @@
 | Search and profiles | Explore and suggested-account recommendations |
 | Notifications | Ads, shopping preloads, and telemetry |
 
-With Home unblocked, **Feed → Stop Home after you're all caught up** keeps the ranked feed and caught-up card while stopping the rows below it. The independent toggle defaults to on; **Following feed only** remains a separate option. See the [implementation and testing notes](docs/STOP_HOME_AT_CAUGHT_UP.md).
+With Home unblocked, the **caught-up cutoff is locked by default**: Instagram keeps its ranked feed through the caught-up card and hides recommendations below it. To unlock more posts, **long-press the caught-up card** and enter the password, or use **Feed → Unlock** in FeurStagram settings. Unlocking applies for one app launch and then relocks automatically. **Following feed only** remains separate. See the [implementation and testing notes](docs/STOP_HOME_AT_CAUGHT_UP.md).
 
 ## Preview
 
