@@ -1,5 +1,8 @@
 package com.feurstagram.extension;
 
+import android.content.Context;
+import android.view.View;
+
 import java.util.List;
 
 /**
@@ -73,6 +76,29 @@ public final class HomeFeedEnd {
     static boolean rankedHome(String source) {
         return source == null || source.isEmpty() || "homecoming_all".equals(source)
                 || "feed_recs".equals(source);
+    }
+
+    /**
+     * The end-card binder calls this after rendering. Long-pressing the visible
+     * caught-up card opens the password dialog. It doesn't replace the card's
+     * normal click handlers or its Older posts link.
+     */
+    public static void bindUnlockGesture(View row, Object card) {
+        if (row == null || card == null) return;
+        try {
+            if (!isEndCard(card) || !Config.isStopHomeAtCaughtUp()
+                    || Config.isFeedBlocked() || Config.isFollowingFeedOnly()) return;
+            row.setLongClickable(true);
+            row.setOnLongClickListener(v -> {
+                // A recycled end-card row must not unlock a newly disabled gate.
+                if (!Config.isStopHomeAtCaughtUp()) return false;
+                Context context = Settings.getActivityContext(v);
+                FeedUnlock.prompt(context, () -> CacheCleaner.clearAndRestart(context));
+                return true;
+            });
+        } catch (Throwable ignored) {
+            // If the card's view changes, the ordinary feed and settings remain usable.
+        }
     }
 
     // Filled with validated, version-specific field access by StopHomeAtCaughtUpPatch.
