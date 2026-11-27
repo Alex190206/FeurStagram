@@ -29,6 +29,7 @@ internal data class HomeFeedEndTargets(
     val rows: FieldReference,
     val model: FieldReference,
     val marker: String,
+    val bind: Method,
 )
 
 /** Pure DEX discovery, also exercised against stand-ins and an optional APK fixture. */
@@ -114,7 +115,11 @@ internal fun findHomeFeedEndTargets(classes: Iterable<ClassDef>): HomeFeedEndTar
     // binder's kept Kotlin cast messages; enum and JSON names are not confused.
     val unit = "null cannot be cast to non-null type com.instagram.feed.feeditem.EndOfFeedDemarcatorUnit"
     val holder = "null cannot be cast to non-null type com.instagram.mainfeed.unconnectedcontent.demarcator.EndOfFeedUnitDemarcatorHolder"
-    val bind = methods.filter { it.name == "bindView" && it.loads(unit) && it.loads(holder) }
+    val bind = methods.filter { it.name == "bindView" && it.returnType == "V" &&
+        !AccessFlags.STATIC.isSet(it.accessFlags) &&
+        it.parameterTypes.map(CharSequence::toString) ==
+            listOf("I", "Landroid/view/View;", "Ljava/lang/Object;", "Ljava/lang/Object;") &&
+        it.loads(unit) && it.loads(holder) }
         .one("expected one end-of-feed card binder")
     val bindCode = bind.code()
     val named = bindCode.indexOfFirst { (it.reference() as? StringReference)?.string == unit }
@@ -151,7 +156,7 @@ internal fun findHomeFeedEndTargets(classes: Iterable<ClassDef>): HomeFeedEndTar
         }
         if (field == count && AccessFlags.FINAL.isSet(declared.accessFlags)) refuse("$field cannot be capped")
     }
-    return HomeFeedEndTargets(home, publish, diff, feed, source, builder, count, rows, model, marker)
+    return HomeFeedEndTargets(home, publish, diff, feed, source, builder, count, rows, model, marker, bind)
 }
 
 private fun Method.code(): List<Instruction> = implementation?.instructions?.toList().orEmpty()
