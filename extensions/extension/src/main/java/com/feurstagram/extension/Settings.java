@@ -110,6 +110,9 @@ public final class Settings {
      */
     public static void installHomeTabWatcher(ViewGroup tabBar) {
         if (tabBar == null) return;
+        // Consume an authorised restart during app startup even if the selected
+        // landing tab is not Home. The handoff can then expire independently.
+        Config.isStopHomeAtCaughtUp();
         tabBar.getViewTreeObserver().addOnGlobalLayoutListener(new HomeTabWatcher(tabBar));
         Hiders.installAll(tabBar);
         Context activity = getActivityContext(tabBar);
