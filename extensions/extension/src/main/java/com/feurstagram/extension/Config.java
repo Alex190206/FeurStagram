@@ -30,7 +30,7 @@ public final class Config {
      * previously an unprotected switch.
      */
     private static boolean sCaughtUpGateInitialized;
-    private static boolean sCaughtUpUnlocked;
+    private static volatile boolean sCaughtUpUnlocked;
     private static final String CAUGHT_UP_NEXT_LAUNCH = "caught_up_unlocked_next_launch";
 
 
@@ -147,7 +147,7 @@ public final class Config {
         SharedPreferences p = prefs();
         if (p == null) return;
         sCaughtUpUnlocked = true;
-        p.edit().putBoolean(CAUGHT_UP_NEXT_LAUNCH, true).apply();
+        p.edit().putBoolean(CAUGHT_UP_NEXT_LAUNCH, true).commit();
     }
 
     /** Re-lock immediately and cancel a pending unlock for the next launch. */
@@ -161,7 +161,8 @@ public final class Config {
     private static synchronized void initCaughtUpGate() {
         if (sCaughtUpGateInitialized) return;
         SharedPreferences p = prefs();
-        if (p != null) {
+        if (p == null) return;
+        {
             sCaughtUpUnlocked = p.getBoolean(CAUGHT_UP_NEXT_LAUNCH, false);
             // Consume the one-shot marker before displaying Home. Also discard
             // the old, unprotected off preference from earlier builds.
