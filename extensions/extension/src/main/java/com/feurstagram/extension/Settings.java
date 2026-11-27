@@ -740,11 +740,12 @@ public final class Settings {
                 SURFACE_CONTAINER_HIGH, ON_SURFACE, true);
         Runnable gateAction = () -> {
             if (!Config.isStopHomeAtCaughtUp()) {
-                Config.lockCaughtUp();
-                Config.setNeedsRestart();
-                unlock.setText("Unlock");
+                if (!Config.lockCaughtUp(context)) {
+                    unlock.setText("Unlock");
+                    Toast.makeText(context, "Locked. Reopen Instagram to refresh Home.", Toast.LENGTH_SHORT).show();
+                }
             } else {
-                FeedUnlock.prompt(context, () -> unlock.setText("Lock"));
+                FeedUnlock.prompt(context);
             }
         };
         unlock.setOnClickListener(v -> gateAction.run());
@@ -1288,7 +1289,6 @@ public final class Settings {
         if (key.equals("auto_update")) return "Check GitHub for a new version on launch.";
         if (key.equals("block_ads")) return "Block sponsored ads across Instagram.";
         if (key.equals("limit_following_feed")) return "Show only accounts you follow (needs the feed unblocked).";
-        if (key.equals("stop_home_at_caught_up")) return "Keep the ranked Home feed and caught-up message; hide everything below it (needs the feed unblocked).";
         if (key.equals("hide_toasts")) return "Hide every Instagram popup, including “couldn’t refresh feed”.";
         if (key.equals("force_sdr")) return "Keep blacks deep by stopping Instagram forcing HDR on the UI.";
         if (key.equals("block_friends_lane")) return "Hide the Friends tab and its avatars in the Reels header.";

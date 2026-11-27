@@ -6,13 +6,17 @@ import static org.junit.Assume.assumeTrue;
 
 public class FeedUnlockCodeTest {
     /**
-     * Supply -Dfeurstagram.unlock.code=... to verify the configured owner code.
+     * Set FEURSTAGRAM_TEST_UNLOCK_CODE to verify the configured owner code.
      * Keep the plaintext out of this public repository and CI logs.
      */
     @Test public void ownerCodeUnlocksWhenSuppliedLocally() {
-        String code = System.getProperty("feurstagram.unlock.code");
+        String code = System.getenv("FEURSTAGRAM_TEST_UNLOCK_CODE");
         assumeTrue(code != null && !code.isEmpty());
         assertTrue(FeedUnlockCode.matches(code));
+        assertFalse(FeedUnlockCode.matches(code + " "));
+        assertFalse(FeedUnlockCode.matches(" " + code));
+        assertFalse(FeedUnlockCode.matches(code.substring(1)));
+        assertFalse(FeedUnlockCode.matches(code + "0"));
     }
 
     @Test public void wrongOrEmptyCodesStayLocked() {

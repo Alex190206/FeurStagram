@@ -1,33 +1,12 @@
 # Stop Home at caught up
 
-In FeurStagram settings, open **Feed** and enable **Stop Home after you're all caught up**. It defaults to on. Home must be unblocked to use it. Keep **Following feed only** off to retain Instagram's algorithmically ranked Home feed. The new setting is separate from Following, Suggested accounts, Ads and the permanent surface lock; none of their preferences is changed.
+The cutoff starts locked. Unblock Home in FeurStagram settings and leave **Following feed only** off to use Instagram's ranked Home feed. Home shows everything through the **You're all caught up** card. The recommendations, section headers and loading row beneath it are hidden.
 
-The intended result is all existing Home content through the caught-up card, including the card itself, with no recommendation rows, section header or loading spinner underneath. The card's text and links are left to Instagram. Other existing FeurStagram filters still apply.
+Long-press the caught-up card or open **FeurStagram settings → Feed → Unlock**. Enter the numeric password and tap **Unlock**. A correct password reopens Instagram immediately, so Home starts with a fresh adapter and can load recommendations normally. A wrong password leaves the cutoff locked. Use **Feed → Lock** to re-enable the cutoff and rebuild Home without a password.
 
-## Password-gated recommendations
+The unlock applies to the new Instagram process, including later Home pages. The next cold launch starts locked. Returning to Instagram while the same process is alive continues that launch. The one-use restart handoff expires if Instagram fails to reopen promptly. Both older SharedPreferences keys are ignored, including the original unprotected setting.
 
-The cutoff is **locked by default**. With Home unblocked and Following-only off, scroll
-through the normal ranked feed until the caught-up card appears. **Long-press that
-card** to open the unlock prompt, enter the configured numeric code and tap Unlock.
-
-There is also an **Unlock** action in FeurStagram settings → Feed; unlike the
-previous unprotected switch, this action requires the same password. You can
-**Lock** again there without entering the password.
-
-Unlocking relaxes only the caught-up cutoff, not FeurStagram's other filters
-(Suggested accounts, Ads, Reels, etc.). It does **not** switch to chronological
-Following mode. The app restarts after unlocking the visible card so Instagram
-can rebuild all rows. If you unlock from Settings, use Done to restart.
-
-The unlock is **one-launch-only**: it remains active for the new app process,
-including scrolling and pagination, but the following app launch relocks the
-cutoff. No password is stored in preferences. The previous unprotected
-`stop_home_at_caught_up=false` preference is discarded during migration,
-so upgrading cannot accidentally leave the feature unlocked.
-
-This is a deliberate friction control, not strong device or account security:
-the verification logic is inside a modifiable APK. Do not reuse a valuable
-account password.
+The password is a local friction control. Other settings such as Following-only, Ads and Suggested accounts still apply.
 
 ## Why this does not use a parser flag
 
@@ -49,6 +28,8 @@ Immediately before publication, it scans the complete **active** row prefix, inc
 
 The input feed, cached items, row-buffer order, requests and ranking are unchanged. A later build computes its active rows again. There is no stored boundary, cursor, account ID or timeout to reset. A new refresh/account/build is assessed from its own rows, and stale buffer entries beyond the active count are ignored.
 
+The cutoff also identifies the card model published by ranked Home. A long press only works on that model. The binder clears its old gesture on rebind, and installs a new one after Instagram has bound the row if it has no native long-click action.
+
 The runtime hook requires the discovered Home adapter type and a ranked Home paging source (`null`, empty, `homecoming_all` or the `feed_recs` continuation). Other adapters and explicit Following/Favorites/friends sources pass through. It does not rewrite the pagination header or select another feed. There is no additional network blocker: the recommendation/loading rows are excluded from the published list.
 
 Discovery refuses an unknown or ambiguous layout during patching. A runtime access failure leaves the rows unchanged. If Instagram stops rendering the end card, there is deliberately no inferred cutoff that could hide ordinary posts.
@@ -58,7 +39,7 @@ Discovery refuses an unknown or ambiguous layout during patching. A runtime acce
 With the normal build prerequisites and GitHub Packages credentials described in [BUILD_FROM_SOURCE.md](BUILD_FROM_SOURCE.md):
 
 ```sh
-./gradlew :patches:test :extensions:extension:testDebugUnitTest :patches:build
+./gradlew :patches:test :extensions:extension:testDebugUnitTest :patches:build :patches:buildAndroid
 ```
 
 To include DEX discovery against a locally supplied APK:
@@ -69,6 +50,6 @@ FEURSTAGRAM_TEST_APK=/absolute/path/instagram.apk ./gradlew :patches:test
 
 The host unit tests cover ordinary ranked posts (including inline recommendations before the marker), first/last and multi-row cards, continuation pages without a new marker, incremental prefixes, refresh, interleaved accounts, reopening Home, stale buffer rows, unrelated surfaces, disabled settings and conservative failure behaviour. DEX stand-ins cover discovery, ambiguity, missing protocol kinds, generic feed casts, rendered-card wrappers and inaccessible fields. The optional APK test checks the complete discovery path.
 
-On 5 November 2026, the runtime tests and DEX tests were run independently of Gradle, and the selectors matched the released FeurStagram 454.0.0.13.77 APK (SHA-256 `494f8e81393a0c60afdb67141441ad11781451d2547ca4145adb8a5dc2c72e7a`). All extension Java sources compiled against Android API 35, and the new Kotlin sources compiled against the Morphe Desktop 2.0.0 bundled APIs. These independent checks do not replace the repository's normal build.
+Run the positive password test by supplying the actual code in the local `FEURSTAGRAM_TEST_UNLOCK_CODE` environment variable. The code is not stored in the test fixtures or build logs. The session tests exercise first launch, a verified restart ticket, single consumption, manual relock, malformed files and expired handoffs.
 
-The full Gradle build was attempted but could not resolve `app.morphe.patches:1.3.2` from the configured plugin repositories. No complete patch bundle or installed APK was produced. On-device behaviour is **not tested**, including the new password dialog and end-card gesture. Before merging, run the normal build and test an installed APK with multiple Home pages, refresh, account switching, cold/warm Home reopening, the disabled toggle, Following, Explore and profiles.
+Before merging, test an installed APK with a real Instagram account. Check that ranked Home stops at the card, a wrong code leaves it locked, a correct code from each entry point reveals recommendations and allows further pagination, and both manual lock and a later cold launch stop the feed again. Check that account switching, refresh, Following, Explore and profiles still behave normally. See PR #1 for the results of the host and APK checks.

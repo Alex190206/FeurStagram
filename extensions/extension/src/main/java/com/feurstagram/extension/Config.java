@@ -1,6 +1,11 @@
 package com.feurstagram.extension;
 
+import android.app.ActivityManager;
+import android.app.Application;
 import android.content.Context;
+import android.os.Build;
+import android.os.Process;
+import android.os.SystemClock;
 import android.content.SharedPreferences;
 
 import java.util.HashMap;
@@ -23,16 +28,8 @@ public final class Config {
      */
     private static boolean sNeedsRestart;
 
-    /**
-     * Password unlock survives exactly one deliberate app restart so the Home
-     * adapter can rebuild its full row list. The next launch relocks it.
-     * Never use the old stop_home_at_caught_up preference as an unlock: it was
-     * previously an unprotected switch.
-     */
     private static boolean sCaughtUpGateInitialized;
-    private static volatile boolean sCaughtUpUnlocked;
-    private static final String CAUGHT_UP_NEXT_LAUNCH = "caught_up_unlocked_next_launch";
-
+    private static boolean sCaughtUpUnlocked;
 
     /**
      * Snapshot of every block_* toggle captured when the settings page opens.
@@ -135,41 +132,49 @@ public final class Config {
         return getBlocked("limit_following_feed", false);
     }
 
-    /** Password gate is locked by default and relocks on the next process launch. */
-    public static boolean isStopHomeAtCaughtUp() {
-        initCaughtUpGate();
+    /** A restart ticket is consumed only by the main Instagram process. */
+    public static synchronized boolean isStopHomeAtCaughtUp() {
+        if (!sCaughtUpGateInitialized) {
+            Context context = getAppContext();
+            if (context == null) return true;
+            sCaughtUpGateInitialized = true;
+            if (isMainProcess(context)) {
+                sCaughtUpUnlocked = FeedUnlockSession.consume(context.getNoBackupFilesDir(), Process.myPid(),
+                        System.currentTimeMillis(), SystemClock.elapsedRealtime());
+            }
+        }
         return !sCaughtUpUnlocked;
     }
 
-    /** Call only after FeedUnlockCode has verified the password. */
-    static void unlockCaughtUpForNextLaunch() {
-        initCaughtUpGate();
-        SharedPreferences p = prefs();
-        if (p == null) return;
-        sCaughtUpUnlocked = true;
-        p.edit().putBoolean(CAUGHT_UP_NEXT_LAUNCH, true).commit();
-    }
+    /** Verify at the point of authorisation, before asking the private restart relay. */
+    enum UnlockResult { INCORRECT_PASSWORD, RESTART_FAILED, RESTARTING }
 
-    /** Re-lock immediately and cancel a pending unlock for the next launch. */
-    static void lockCaughtUp() {
-        initCaughtUpGate();
-        sCaughtUpUnlocked = false;
-        SharedPreferences p = prefs();
-        if (p != null) p.edit().remove(CAUGHT_UP_NEXT_LAUNCH).apply();
-    }
-
-    private static synchronized void initCaughtUpGate() {
-        if (sCaughtUpGateInitialized) return;
-        SharedPreferences p = prefs();
-        if (p == null) return;
-        {
-            sCaughtUpUnlocked = p.getBoolean(CAUGHT_UP_NEXT_LAUNCH, false);
-            // Consume the one-shot marker before displaying Home. Also discard
-            // the old, unprotected off preference from earlier builds.
-            p.edit().remove(CAUGHT_UP_NEXT_LAUNCH)
-                    .remove("stop_home_at_caught_up").commit();
+    static UnlockResult requestCaughtUpUnlock(Context context, String code) {
+        if (!FeedUnlockCode.matches(code)) return UnlockResult.INCORRECT_PASSWORD;
+        if (!isStopHomeAtCaughtUp() || !CacheCleaner.restartForFeedGate(context, true)) {
+            return UnlockResult.RESTART_FAILED;
         }
-        sCaughtUpGateInitialized = true;
+        return UnlockResult.RESTARTING;
+    }
+
+    /** Re-lock immediately. Restarting removes any extra rows already visible. */
+    static synchronized boolean lockCaughtUp(Context context) {
+        isStopHomeAtCaughtUp();
+        sCaughtUpUnlocked = false;
+        FeedUnlockSession.cancel(context.getNoBackupFilesDir());
+        return CacheCleaner.restartForFeedGate(context, false);
+    }
+
+    private static boolean isMainProcess(Context context) {
+        if (Build.VERSION.SDK_INT >= 28) return context.getPackageName().equals(Application.getProcessName());
+        ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        if (manager == null) return false;
+        java.util.List<ActivityManager.RunningAppProcessInfo> processes = manager.getRunningAppProcesses();
+        if (processes == null) return false;
+        for (ActivityManager.RunningAppProcessInfo candidate : processes) {
+            if (candidate.pid == Process.myPid()) return context.getPackageName().equals(candidate.processName);
+        }
+        return false;
     }
 
     public static boolean isFeedBlocked()      { return getBlocked("block_feed", true); }

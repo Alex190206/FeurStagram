@@ -154,6 +154,21 @@ class HomeFeedEndTargetsTest {
         assertEquals(card, findHomeFeedEndTargets(classes).marker)
     }
 
+    @Test fun diffPrefixOutsideMoveResultRegisterRangeRefuses() {
+        val classes = fixture().map {
+            if (it.type != host) return@map it
+            type(host, listOf(builderField), it.methods.map { original ->
+                if (original.name != "diff") original else ImmutableMethod(
+                    original.definingClass, original.name, original.parameters, original.returnType,
+                    original.accessFlags, null, null,
+                    ImmutableMethodImplementation(257, original.implementation!!.instructions, null, null),
+                )
+            })
+        }
+        val error = assertThrows(IllegalStateException::class.java) { findHomeFeedEndTargets(classes) }
+        assertTrue(error.message!!.contains("prefix register"))
+    }
+
     @Test fun privateActiveCountRefusesAnUnreachableBridge() {
         val classes = fixture().map {
             if (it.type != rows) it else ImmutableClassDef(rows, pub, obj, null, null, null,

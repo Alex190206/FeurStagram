@@ -3,7 +3,10 @@ package com.feurstagram.extension;
 import android.content.Context;
 import android.view.View;
 
+import java.lang.ref.WeakReference;
 import java.util.List;
+import java.util.WeakHashMap;
+import java.util.function.Consumer;
 
 /**
  * Stops the published Home rows at the caught-up card. The JSON item parser is
@@ -43,13 +46,26 @@ public final class HomeFeedEnd {
         public void resize(Object rows, int size) { setRowCount(rows, size); }
     };
 
+    // Only a card published by ranked Home can open the prompt. Neither map keeps
+    // adapters, card models, or row views alive.
+    private static final WeakHashMap<Object, WeakReference<Object>> HOME_CARDS = new WeakHashMap<>();
+    private static final WeakHashMap<View, UnlockGesture> ROW_GESTURES = new WeakHashMap<>();
+
     static int limit(Object adapter, int prefix) {
-        return limit(adapter, prefix, Config.isStopHomeAtCaughtUp(), INSTAGRAM);
+        if (!isHomeAdapter(adapter)) return prefix;
+        return limit(adapter, prefix, Config.isStopHomeAtCaughtUp(), INSTAGRAM,
+                card -> rememberHomeCard(adapter, card));
     }
 
     /** Also clamps the reused prefix of an incremental diff to the visible end. */
     static int limit(Object adapter, int prefix, boolean enabled, Access access) {
+        return limit(adapter, prefix, enabled, access, null);
+    }
+
+    private static int limit(Object adapter, int prefix, boolean enabled, Access access,
+                             Consumer<Object> observeCard) {
         if (!enabled || adapter == null || prefix < 0) return prefix;
+        if (observeCard != null) observeCard.accept(null);
         try {
             if (!access.home(adapter) || !rankedHome(access.source(adapter))) return prefix;
             Object builder = access.rows(adapter);
@@ -64,6 +80,7 @@ public final class HomeFeedEnd {
                 // A binder may emit several rows for one card; keep the whole card.
                 while (end < count && access.model(rows.get(end)) == model) end++;
                 if (end < count) access.resize(builder, end);
+                if (observeCard != null) observeCard.accept(model);
                 return Math.min(prefix, end);
             }
         } catch (Throwable ignored) {
@@ -78,26 +95,60 @@ public final class HomeFeedEnd {
                 || "feed_recs".equals(source);
     }
 
-    /**
-     * The end-card binder calls this while rendering. Long-pressing the visible
-     * caught-up card opens the password dialog. It doesn't replace the card's
-     * normal click handlers or its Older posts link.
-     */
+    private static void rememberHomeCard(Object adapter, Object card) {
+        synchronized (HOME_CARDS) {
+            if (card == null) HOME_CARDS.remove(adapter);
+            else HOME_CARDS.put(adapter, new WeakReference<>(card));
+        }
+    }
+
+    private static boolean isPublishedHomeCard(Object card) {
+        if (card == null || !Config.isStopHomeAtCaughtUp()
+                || Config.isFeedBlocked() || Config.isFollowingFeedOnly()) return false;
+        synchronized (HOME_CARDS) {
+            for (WeakReference<Object> entry : HOME_CARDS.values()) {
+                if (entry.get() == card) return true;
+            }
+            return false;
+        }
+    }
+
+    /** Runs on every end-card bind, including reuse for a different feed. */
     public static void bindUnlockGesture(View row, Object card) {
-        if (row == null || card == null) return;
-        try {
-            if (!isEndCard(card) || !Config.isStopHomeAtCaughtUp()
-                    || Config.isFeedBlocked() || Config.isFollowingFeedOnly()) return;
-            row.setLongClickable(true);
-            row.setOnLongClickListener(v -> {
-                // A recycled end-card row must not unlock a newly disabled gate.
-                if (!Config.isStopHomeAtCaughtUp()) return false;
-                Context context = Settings.getActivityContext(v);
-                FeedUnlock.prompt(context, () -> CacheCleaner.clearAndRestart(context));
-                return true;
-            });
-        } catch (Throwable ignored) {
-            // If the card's view changes, the ordinary feed and settings remain usable.
+        if (row == null) return;
+        UnlockGesture previous = ROW_GESTURES.remove(row);
+        if (previous != null && previous.installed) {
+            row.setOnLongClickListener(null);
+            row.setLongClickable(false);
+        }
+        if (!isPublishedHomeCard(card)) return;
+
+        UnlockGesture gesture = new UnlockGesture(card);
+        ROW_GESTURES.put(row, gesture);
+        // Let Instagram bind its own controls first. A second bind invalidates
+        // this callback before it can install a listener on a reused row.
+        row.post(() -> {
+            if (ROW_GESTURES.get(row) != gesture || row.isLongClickable()
+                    || !isPublishedHomeCard(gesture.card.get())) return;
+            row.setOnLongClickListener(gesture);
+            gesture.installed = true;
+        });
+    }
+
+    private static final class UnlockGesture implements View.OnLongClickListener {
+        final WeakReference<Object> card;
+        boolean installed;
+
+        UnlockGesture(Object card) {
+            this.card = new WeakReference<>(card);
+        }
+
+        @Override
+        public boolean onLongClick(View row) {
+            if (ROW_GESTURES.get(row) != this || !row.isShown()
+                    || !isPublishedHomeCard(card.get())) return false;
+            Context context = Settings.getActivityContext(row);
+            return FeedUnlock.prompt(context);
         }
     }
 

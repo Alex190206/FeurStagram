@@ -5,6 +5,7 @@ import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
+import com.feurstagram.patches.restart.restartRelayPatch
 import com.feurstagram.patches.shared.Constants.COMPATIBILITY_INSTAGRAM
 import com.feurstagram.patches.shared.Constants.EXTENSION
 
@@ -20,6 +21,7 @@ val stopHomeAtCaughtUpPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_INSTAGRAM)
     extendWith(EXTENSION)
+    dependsOn(restartRelayPatch)
 
     execute {
         val classes = mutableListOf<ClassDef>()
@@ -56,8 +58,9 @@ val stopHomeAtCaughtUpPatch = bytecodePatch(
         bodies.keys.forEach { if (bridges[it] == null) throw PatchException("Missing Home boundary bridge: $it") }
         bodies.forEach { (name, body) -> bridges.getValue(name).addInstructions(0, body) }
 
-        // Install the gesture as the end-card view is bound, using the same
-        // stable (view, card) parameter positions as HushGram's card hook.
+        // Pass stable (view, card) parameters before the binder can reuse them.
+        // The extension clears its old binding before Instagram runs and posts
+        // the new gesture afterward so native long-click handlers take priority.
         mutable(target.bind).addInstructions(
             0,
             "invoke-static/range { p2 .. p3 }, " +

@@ -2,6 +2,7 @@ rootProject.name = "feurstagram-patches"
 
 pluginManagement {
     repositories {
+        mavenLocal()
         gradlePluginPortal()
         google()
         maven {

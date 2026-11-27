@@ -192,4 +192,18 @@ public class HomeFeedEndTest {
         assertTrue(Config.isAdsBlocked());
         assertTrue(Config.isSuggestedBlocked());
     }
+    @Test public void unlockedLaunchShowsRecommendationsAndKeepsPaginating() {
+        Feed feed = new Feed("ranked", new Card(), "recommendation-on-boundary-page", "spinner");
+        assertEquals(0, HomeFeedEnd.limit(feed, 0, false, ACCESS));
+        assertEquals(4, feed.count);
+
+        feed.source = "feed_recs";
+        feed.rows.add(new Row("recommendation-from-next-page"));
+        feed.count = feed.rows.size();
+        assertEquals(4, HomeFeedEnd.limit(feed, 4, false, ACCESS));
+        assertEquals(5, feed.count);
+
+        assertEquals(2, HomeFeedEnd.limit(feed, 4, true, ACCESS));
+        assertEquals(2, feed.count);
+    }
 }

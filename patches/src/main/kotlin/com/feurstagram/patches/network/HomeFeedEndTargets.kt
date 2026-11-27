@@ -55,6 +55,10 @@ internal fun findHomeFeedEndTargets(classes: Iterable<ClassDef>): HomeFeedEndTar
             !AccessFlags.STATIC.isSet(it.accessFlags) &&
             it.returnType == "V" && it.loads("smartUpdate") && it.loads("smartUpdateSync")
     }.one("expected one full/incremental diff publisher")
+    // The invoke uses /range, but move-result only encodes an 8-bit register.
+    if (diff.implementation!!.registerCount !in 3..256) {
+        refuse("diff publisher's prefix register cannot hold the injected result")
+    }
 
     // A Home load-more check reads adapter.feed.source before comparing it with
     // Following's protocol name. This excludes Profile/Explore, and avoids a
