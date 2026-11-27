@@ -71,7 +71,8 @@ class HomeFeedEndTargetsTest {
             type(card),
             type("Lfixture/LoadMore;", methods = listOf(method("Lfixture/LoadMore;", "endRule", listOf(home), "Z",
                 read(feedField), read(sourceField, 0, 0), text("homecoming_following")))),
-            type("Lfixture/EndCardBinder;", methods = listOf(method("Lfixture/EndCardBinder;", "bindView", code = arrayOf(
+            type("Lfixture/EndCardBinder;", methods = listOf(method("Lfixture/EndCardBinder;", "bindView",
+                listOf("I", "Landroid/view/View;", obj, obj), "V", *arrayOf(
                 text("null cannot be cast to non-null type com.instagram.mainfeed.unconnectedcontent.demarcator.EndOfFeedUnitDemarcatorHolder"),
                 text("null cannot be cast to non-null type com.instagram.feed.feeditem.EndOfFeedDemarcatorUnit"),
                 ImmutableInstruction21c(Opcode.CHECK_CAST, 0, ImmutableTypeReference(card)),
@@ -92,6 +93,8 @@ class HomeFeedEndTargetsTest {
         assertEquals(rowsField, found.rows)
         assertEquals(sourceField, found.source)
         assertEquals(card, found.marker)
+        assertEquals("bindView", found.bind.name)
+        assertEquals(listOf("I", "Landroid/view/View;", obj, obj), found.bind.parameterTypes.map(CharSequence::toString))
     }
 
     @Test fun unrelatedPublisherCannotBeSelected() {
