@@ -24,6 +24,17 @@ public final class Config {
     private static boolean sNeedsRestart;
 
     /**
+     * Password unlock survives exactly one deliberate app restart so the Home
+     * adapter can rebuild its full row list. The next launch relocks it.
+     * Never use the old stop_home_at_caught_up preference as an unlock: it was
+     * previously an unprotected switch.
+     */
+    private static boolean sCaughtUpGateInitialized;
+    private static boolean sCaughtUpUnlocked;
+    private static final String CAUGHT_UP_NEXT_LAUNCH = "caught_up_unlocked_next_launch";
+
+
+    /**
      * Snapshot of every block_* toggle captured when the settings page opens.
      * The permanent lock only freezes surfaces that were already blocked at this
      * snapshot, so a mis-toggle made during the current session can still be
@@ -124,9 +135,40 @@ public final class Config {
         return getBlocked("limit_following_feed", false);
     }
 
-    /** Keep ranked Home, ending at its caught-up card. Independent of Following and Suggested. */
+    /** Password gate is locked by default and relocks on the next process launch. */
     public static boolean isStopHomeAtCaughtUp() {
-        return getBlocked("stop_home_at_caught_up", true);
+        initCaughtUpGate();
+        return !sCaughtUpUnlocked;
+    }
+
+    /** Call only after FeedUnlockCode has verified the password. */
+    static void unlockCaughtUpForNextLaunch() {
+        initCaughtUpGate();
+        SharedPreferences p = prefs();
+        if (p == null) return;
+        sCaughtUpUnlocked = true;
+        p.edit().putBoolean(CAUGHT_UP_NEXT_LAUNCH, true).apply();
+    }
+
+    /** Re-lock immediately and cancel a pending unlock for the next launch. */
+    static void lockCaughtUp() {
+        initCaughtUpGate();
+        sCaughtUpUnlocked = false;
+        SharedPreferences p = prefs();
+        if (p != null) p.edit().remove(CAUGHT_UP_NEXT_LAUNCH).apply();
+    }
+
+    private static synchronized void initCaughtUpGate() {
+        if (sCaughtUpGateInitialized) return;
+        SharedPreferences p = prefs();
+        if (p != null) {
+            sCaughtUpUnlocked = p.getBoolean(CAUGHT_UP_NEXT_LAUNCH, false);
+            // Consume the one-shot marker before displaying Home. Also discard
+            // the old, unprotected off preference from earlier builds.
+            p.edit().remove(CAUGHT_UP_NEXT_LAUNCH)
+                    .remove("stop_home_at_caught_up").commit();
+        }
+        sCaughtUpGateInitialized = true;
     }
 
     public static boolean isFeedBlocked()      { return getBlocked("block_feed", true); }
