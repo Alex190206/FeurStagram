@@ -732,7 +732,24 @@ public final class Settings {
     private static void buildFeed(Context context, LinearLayout column) {
         LinearLayout feed = addGroup(context, column);
         addRow(context, feed, "Following feed only", "limit_following_feed", Config.isFollowingFeedOnly());
-        addRow(context, feed, "Stop Home after you're all caught up", "stop_home_at_caught_up", Config.isStopHomeAtCaughtUp());
+        // The cutoff is default-on. Relaxing it is password-gated;
+        // re-enabling it is always possible without the password.
+        LinearLayout gate = makeRow(context, feed, "Posts after you're all caught up",
+                "Long-press the caught-up card to unlock, or unlock here with your password.");
+        Button unlock = makeButton(context, Config.isStopHomeAtCaughtUp() ? "Unlock" : "Lock",
+                SURFACE_CONTAINER_HIGH, ON_SURFACE, true);
+        Runnable gateAction = () -> {
+            if (!Config.isStopHomeAtCaughtUp()) {
+                Config.setBlocked("stop_home_at_caught_up", true);
+                Config.setNeedsRestart();
+                unlock.setText("Unlock");
+            } else {
+                FeedUnlock.prompt(context, () -> unlock.setText("Lock"));
+            }
+        };
+        unlock.setOnClickListener(v -> gateAction.run());
+        gate.setOnClickListener(v -> gateAction.run());
+        gate.addView(unlock);
         sealGroup(context, feed);
     }
 
