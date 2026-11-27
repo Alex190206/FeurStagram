@@ -740,7 +740,7 @@ public final class Settings {
                 SURFACE_CONTAINER_HIGH, ON_SURFACE, true);
         Runnable gateAction = () -> {
             if (!Config.isStopHomeAtCaughtUp()) {
-                Config.setBlocked("stop_home_at_caught_up", true);
+                Config.lockCaughtUp();
                 Config.setNeedsRestart();
                 unlock.setText("Unlock");
             } else {
