@@ -1,6 +1,11 @@
 package com.feurstagram.extension;
 
+import android.app.ActivityManager;
+import android.app.Application;
 import android.content.Context;
+import android.os.Build;
+import android.os.Process;
+import android.os.SystemClock;
 import android.content.SharedPreferences;
 
 import java.util.HashMap;
@@ -22,6 +27,9 @@ public final class Config {
      * Cleared implicitly on every process start.
      */
     private static boolean sNeedsRestart;
+
+    private static boolean sCaughtUpGateInitialized;
+    private static boolean sCaughtUpUnlocked;
 
     /**
      * Snapshot of every block_* toggle captured when the settings page opens.
@@ -122,6 +130,51 @@ public final class Config {
      */
     public static boolean isFollowingFeedOnly() {
         return getBlocked("limit_following_feed", false);
+    }
+
+    /** A restart ticket is consumed only by the main Instagram process. */
+    public static synchronized boolean isStopHomeAtCaughtUp() {
+        if (!sCaughtUpGateInitialized) {
+            Context context = getAppContext();
+            if (context == null) return true;
+            sCaughtUpGateInitialized = true;
+            if (isMainProcess(context)) {
+                sCaughtUpUnlocked = FeedUnlockSession.consume(context.getNoBackupFilesDir(), Process.myPid(),
+                        System.currentTimeMillis(), SystemClock.elapsedRealtime());
+            }
+        }
+        return !sCaughtUpUnlocked;
+    }
+
+    /** Verify at the point of authorisation, before asking the private restart relay. */
+    enum UnlockResult { INCORRECT_PASSWORD, RESTART_FAILED, RESTARTING }
+
+    static UnlockResult requestCaughtUpUnlock(Context context, String code) {
+        if (!FeedUnlockCode.matches(code)) return UnlockResult.INCORRECT_PASSWORD;
+        if (!isStopHomeAtCaughtUp() || !CacheCleaner.restartForFeedGate(context, true)) {
+            return UnlockResult.RESTART_FAILED;
+        }
+        return UnlockResult.RESTARTING;
+    }
+
+    /** Re-lock immediately. Restarting removes any extra rows already visible. */
+    static synchronized boolean lockCaughtUp(Context context) {
+        isStopHomeAtCaughtUp();
+        sCaughtUpUnlocked = false;
+        FeedUnlockSession.cancel(context.getNoBackupFilesDir());
+        return CacheCleaner.restartForFeedGate(context, false);
+    }
+
+    private static boolean isMainProcess(Context context) {
+        if (Build.VERSION.SDK_INT >= 28) return context.getPackageName().equals(Application.getProcessName());
+        ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        if (manager == null) return false;
+        java.util.List<ActivityManager.RunningAppProcessInfo> processes = manager.getRunningAppProcesses();
+        if (processes == null) return false;
+        for (ActivityManager.RunningAppProcessInfo candidate : processes) {
+            if (candidate.pid == Process.myPid()) return context.getPackageName().equals(candidate.processName);
+        }
+        return false;
     }
 
     public static boolean isFeedBlocked()      { return getBlocked("block_feed", true); }

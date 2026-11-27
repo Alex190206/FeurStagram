@@ -16,4 +16,8 @@ This project is built with and attributes the following GPLv3 works:
 - Piko (https://github.com/crimera/piko) — some Instagram patch approaches
   (notably the network-blocking and clone techniques) are adapted from Piko.
 
+- HushGram (https://github.com/SysAdminDoc/HushGram), Copyright 2026 HushGram
+  contributors — Home feed scoping and caught-up marker/model discovery used by
+  the optional stop-at-caught-up feature are adapted from HushGram (GPLv3).
+
 All other code is original to Feurstagram.

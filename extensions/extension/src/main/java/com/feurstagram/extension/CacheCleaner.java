@@ -18,19 +18,35 @@ import java.util.Locale;
 public final class CacheCleaner implements Runnable {
 
     private final Context context;
+    private final boolean unlockAfterRestart;
 
-    private CacheCleaner(Context context) {
+    private CacheCleaner(Context context, boolean unlockAfterRestart) {
         this.context = context;
+        this.unlockAfterRestart = unlockAfterRestart;
+    }
+
+    /** A feed gate change needs a fresh Home adapter, not a cache wipe. */
+    static boolean restartForFeedGate(Context context, boolean unlock) {
+        if (Config.isRestartPending()) {
+            // Other settings still need their normal cache invalidation.
+            clearAndRestart(context, unlock);
+            return true;
+        }
+        return startRestartRelay(context, unlock);
     }
 
     /** Show a toast, then run the wipe + restart on a worker thread. */
     public static void clearAndRestart(Context context) {
+        clearAndRestart(context, false);
+    }
+
+    private static void clearAndRestart(Context context, boolean unlock) {
         if (context == null) return;
         try {
             Toast.makeText(context, "Feurstagram: clearing cache...", Toast.LENGTH_SHORT).show();
         } catch (Throwable ignored) {
         }
-        new Thread(new CacheCleaner(context)).start();
+        new Thread(new CacheCleaner(context, unlock)).start();
     }
 
     @Override
@@ -63,7 +79,7 @@ public final class CacheCleaner implements Runnable {
         // but keep this one alive long enough to hand the restart to the relay.
         stopAppProcesses(context, true);
 
-        if (startRestartRelay(context)) {
+        if (startRestartRelay(context, unlockAfterRestart)) {
             // The relay kills this process from the outside and relaunches the app.
             // If it somehow never arrives, fall through rather than hang here.
             try {
@@ -88,10 +104,10 @@ public final class CacheCleaner implements Runnable {
      *
      * @return whether the relay was started (false falls back to the plain kill)
      */
-    private static boolean startRestartRelay(Context context) {
+    private static boolean startRestartRelay(Context context, boolean unlock) {
         if (context == null) return false;
         try {
-            context.startActivity(RestartActivity.intentFor(context, Process.myPid()));
+            context.startActivity(RestartActivity.intentFor(context, Process.myPid(), unlock));
             return true;
         } catch (Throwable t) {
             return false;

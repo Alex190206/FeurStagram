@@ -5,9 +5,9 @@ you inspect the patches and avoid trusting a prebuilt APK.
 
 ## Requirements
 
-- JDK 21 and the Android SDK (`ANDROID_HOME` set, build-tools installed)
-- A GitHub token with the `read:packages` scope in `~/.gradle/gradle.properties`
-  (used to fetch the patcher dependency):
+- JDK 21 and Android SDK Platform 36 with Build Tools 36 (`ANDROID_HOME` set)
+- A classic GitHub personal access token with the `read:packages` scope in `~/.gradle/gradle.properties`
+  (used for the pinned Morphe plugin, patcher and library):
   ```properties
   gpr.user=<your-github-username>
   gpr.key=<token-with-read:packages>
@@ -36,6 +36,18 @@ you inspect the patches and avoid trusting a prebuilt APK.
    ```sh
    adb install -r feurstagram.apk
    ```
+
+## Morphe Manager bundle
+
+Build the JVM and Android variants of the patch bundle together:
+
+```sh
+./gradlew :patches:test :extensions:extension:testDebugUnitTest :patches:build :patches:buildAndroid
+```
+
+Import the non-source `patches-*.mpp` from `patches/build/libs` with **Patch sources → + → Local** in Morphe Manager. The `buildAndroid` task adds `classes.dex`, which the on-device patch loader needs.
+
+If GitHub Packages returns HTTP 401, configure the credentials above or publish the exact pinned tool versions to your local Maven repository. Changing the dependency versions does not fix package access.
 
 ## Signing
 

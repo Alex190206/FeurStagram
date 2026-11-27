@@ -110,6 +110,9 @@ public final class Settings {
      */
     public static void installHomeTabWatcher(ViewGroup tabBar) {
         if (tabBar == null) return;
+        // Consume an authorised restart during app startup even if the selected
+        // landing tab is not Home. The handoff can then expire independently.
+        Config.isStopHomeAtCaughtUp();
         tabBar.getViewTreeObserver().addOnGlobalLayoutListener(new HomeTabWatcher(tabBar));
         Hiders.installAll(tabBar);
         Context activity = getActivityContext(tabBar);
@@ -732,6 +735,25 @@ public final class Settings {
     private static void buildFeed(Context context, LinearLayout column) {
         LinearLayout feed = addGroup(context, column);
         addRow(context, feed, "Following feed only", "limit_following_feed", Config.isFollowingFeedOnly());
+        // The cutoff is default-on. Relaxing it is password-gated;
+        // re-enabling it is always possible without the password.
+        LinearLayout gate = makeRow(context, feed, "Posts after you're all caught up",
+                "Long-press the caught-up card to unlock, or unlock here with your password.");
+        Button unlock = makeButton(context, Config.isStopHomeAtCaughtUp() ? "Unlock" : "Lock",
+                SURFACE_CONTAINER_HIGH, ON_SURFACE, true);
+        Runnable gateAction = () -> {
+            if (!Config.isStopHomeAtCaughtUp()) {
+                if (!Config.lockCaughtUp(context)) {
+                    unlock.setText("Unlock");
+                    Toast.makeText(context, "Locked. Reopen Instagram to refresh Home.", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                FeedUnlock.prompt(context);
+            }
+        };
+        unlock.setOnClickListener(v -> gateAction.run());
+        gate.setOnClickListener(v -> gateAction.run());
+        gate.addView(unlock);
         sealGroup(context, feed);
     }
 

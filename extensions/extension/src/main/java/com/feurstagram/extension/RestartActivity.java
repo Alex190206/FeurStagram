@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Process;
+import android.os.SystemClock;
 
 /**
  * One-shot relay that makes "clear cache and restart" actually restart.
@@ -21,31 +22,39 @@ public final class RestartActivity extends Activity {
     /** Pid of the process to kill, put in by {@link CacheCleaner}. */
     public static final String EXTRA_PID = "com.feurstagram.extension.RESTART_PID";
 
-    /** Intent that launches this relay in its own task. */
-    static Intent intentFor(Context context, int pid) {
+    private static final String EXTRA_UNLOCK_HOME = "com.feurstagram.extension.UNLOCK_HOME";
+
+    /** Intent that launches this non-exported relay in its own task. */
+    static Intent intentFor(Context context, int pid, boolean unlock) {
         Intent intent = new Intent(context, RestartActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
         intent.putExtra(EXTRA_PID, pid);
+        intent.putExtra(EXTRA_UNLOCK_HOME, unlock);
         return intent;
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        try {
-            int pid = getIntent().getIntExtra(EXTRA_PID, -1);
-            // Same uid, so the kill is allowed. Everything Instagram held in
-            // memory goes with it; the caches on disk are already wiped.
-            if (pid > 0 && pid != Process.myPid()) Process.killProcess(pid);
-
-            Intent target = getPackageManager().getLaunchIntentForPackage(getPackageName());
-            if (target != null) {
-                target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(target);
-            }
-        } catch (Throwable ignored) {
-        }
-        // Leave no trace: this process holds nothing, so the system reaps it.
+        if (savedInstanceState == null) restart(getIntent());
         finish();
+    }
+
+    private void restart(Intent request) {
+        boolean unlock = request.getBooleanExtra(EXTRA_UNLOCK_HOME, false);
+        try {
+            int pid = request.getIntExtra(EXTRA_PID, -1);
+            Intent target = getPackageManager().getLaunchIntentForPackage(getPackageName());
+            if (target == null || pid <= 0 || pid == Process.myPid()) return;
+
+            if (unlock && !FeedUnlockSession.issue(getNoBackupFilesDir(), pid,
+                    System.currentTimeMillis(), SystemClock.elapsedRealtime())) return;
+
+            Process.killProcess(pid);
+            target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(target);
+        } catch (RuntimeException failure) {
+            if (unlock) FeedUnlockSession.cancel(getNoBackupFilesDir());
+        }
     }
 }

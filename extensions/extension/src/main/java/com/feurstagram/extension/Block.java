@@ -195,6 +195,16 @@ public final class Block {
         return drop ? null : media;
     }
 
+    /** Home's completed rows, immediately before publishing without a diff. */
+    public static void limitHomeRows(Object adapter) {
+        HomeFeedEnd.limit(adapter, 0);
+    }
+
+    /** Home's diff publisher: its reused prefix must end at the same boundary. */
+    public static int limitHomeRowPrefix(Object adapter, Object configuration, int prefix) {
+        return HomeFeedEnd.limit(adapter, prefix);
+    }
+
     /**
      * Name of the story-tray model's getter for {@code reel_type}. Obfuscated and
      * renamed every release, so the patch rewrites this body with the name it

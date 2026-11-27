@@ -15,6 +15,7 @@ patches {
 dependencies {
     // Provides app.morphe.util.* helpers (DOM, bytecode, references) used by the patches.
     implementation(libs.morphe.patches.library)
+    testImplementation("junit:junit:4.13.2")
 }
 
 kotlin {
