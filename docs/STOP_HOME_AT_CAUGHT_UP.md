@@ -4,6 +4,31 @@ In FeurStagram settings, open **Feed** and enable **Stop Home after you're all c
 
 The intended result is all existing Home content through the caught-up card, including the card itself, with no recommendation rows, section header or loading spinner underneath. The card's text and links are left to Instagram. Other existing FeurStagram filters still apply.
 
+## Password-gated recommendations
+
+The cutoff is **locked by default**. With Home unblocked and Following-only off, scroll
+through the normal ranked feed until the caught-up card appears. **Long-press that
+card** to open the unlock prompt, enter the configured numeric code and tap Unlock.
+
+There is also an **Unlock** action in FeurStagram settings → Feed; unlike the
+previous unprotected switch, this action requires the same password. You can
+**Lock** again there without entering the password.
+
+Unlocking relaxes only the caught-up cutoff, not FeurStagram's other filters
+(Suggested accounts, Ads, Reels, etc.). It does **not** switch to chronological
+Following mode. The app restarts after unlocking the visible card so Instagram
+can rebuild all rows. If you unlock from Settings, use Done to restart.
+
+The unlock is **one-launch-only**: it remains active for the new app process,
+including scrolling and pagination, but the following app launch relocks the
+cutoff. No password is stored in preferences. The previous unprotected
+`stop_home_at_caught_up=false` preference is discarded during migration,
+so upgrading cannot accidentally leave the feature unlocked.
+
+This is a deliberate friction control, not strong device or account security:
+the verification logic is inside a modifiable APK. Do not reuse a valuable
+account password.
+
 ## Why this does not use a parser flag
 
 `FeedItemFilterPatch` sees a JSON field name for one unit. It has no account, request generation, page cursor or owning feed. The same parser is used by Explore and other feed surfaces. A process-wide or thread-local “past the end” flag there cannot reliably handle a later page on another thread, refreshes, account changes, cached reads or unrelated feeds. Resetting it on every page would instead let recommendation-only continuation pages through.
@@ -46,4 +71,4 @@ The host unit tests cover ordinary ranked posts (including inline recommendation
 
 On 5 November 2026, the runtime tests and DEX tests were run independently of Gradle, and the selectors matched the released FeurStagram 454.0.0.13.77 APK (SHA-256 `494f8e81393a0c60afdb67141441ad11781451d2547ca4145adb8a5dc2c72e7a`). All extension Java sources compiled against Android API 35, and the new Kotlin sources compiled against the Morphe Desktop 2.0.0 bundled APIs. These independent checks do not replace the repository's normal build.
 
-The full Gradle build was attempted but could not resolve `app.morphe.patches:1.3.2` from the configured plugin repositories. No complete patch bundle or installed APK was produced. On-device behaviour is **not tested**. Before merging, run the normal build and test an installed APK with multiple Home pages, refresh, account switching, cold/warm Home reopening, the disabled toggle, Following, Explore and profiles.
+The full Gradle build was attempted but could not resolve `app.morphe.patches:1.3.2` from the configured plugin repositories. No complete patch bundle or installed APK was produced. On-device behaviour is **not tested**, including the new password dialog and end-card gesture. Before merging, run the normal build and test an installed APK with multiple Home pages, refresh, account switching, cold/warm Home reopening, the disabled toggle, Following, Explore and profiles.
