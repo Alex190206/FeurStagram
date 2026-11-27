@@ -17,7 +17,7 @@ private const val BLOCK = "Lcom/feurstagram/extension/Block;"
 val stopHomeAtCaughtUpPatch = bytecodePatch(
     name = "Stop Home at caught up",
     description = "Keeps the ranked Home feed and its caught-up card, and stops the rows below it. " +
-        "Independent runtime toggle, on by default. Does not select Following mode.",
+        "Password-gated, default-on; long-press the caught-up card to unlock. Does not select Following mode.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_INSTAGRAM)
